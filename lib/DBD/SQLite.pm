@@ -4,7 +4,7 @@ package DBD::SQLite;
 use strict;
 
 use DBI;
-use vars qw($err $errstr $state $drh $VERSION @ISA);
+use vars qw($err $errstr $state $drh $VERSION @ISA $sqlite_version);
 $VERSION = '1.14';
 
 use DynaLoader();

@@ -2,7 +2,7 @@ package DBD::SQLite::Amalgamation;
 use 5.006;
 use strict;
 use warnings;
-use version;our $VERSION = qv('3.5.6');
+use version;our $VERSION = qv('3.5.7');
 use DBD::SQLite;
 
 1;
