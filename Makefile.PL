@@ -125,14 +125,14 @@ WriteMakefile(
     'NAME'          => 'DBD::SQLite',
     'VERSION_FROM'  => 'lib/DBD/SQLite.pm', # finds $VERSION
     'DISTNAME'      => 'DBD-SQLite-Amalgamation',
-    'DISTVNAME'     => 'DBD-SQLite-Amalgamation-3.5.7',
+    'DISTVNAME'     => 'DBD-SQLite-Amalgamation-3.5.8',
     'PREREQ_PM'     => {DBI => 1.21, version => 0}, # e.g., Module::Name => 1.1
     'OBJECT'        => ($force_local) ? '$(O_FILES)' : 'SQLite.o dbdimp.o',
     'INC'           => '-I. -I$(DBI_INSTARCH_DIR)' .
                        (($sqlite_inc) ? " -I$sqlite_inc" : ''),
     $libs ? ('LIBS' => $libs) : (),
     'OPTIMIZE'      => "-O3",
-    'DEFINE'        => "-DSQLITE_CORE -DNDEBUG=1 -DSQLITE_PTR_SZ=$Config{ptrsize}" .
+    'DEFINE'        => "-DSQLITE_ENABLE_FTS3=1 -DSQLITE_CORE -DNDEBUG=1 -DSQLITE_PTR_SZ=$Config{ptrsize}" .
                        ( ($Config{d_usleep} ||
                           $Config{osname} =~ m/linux/) ?
                                 " -DHAVE_USLEEP=1" : "" ) .

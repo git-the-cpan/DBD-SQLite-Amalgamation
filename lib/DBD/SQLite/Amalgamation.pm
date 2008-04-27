@@ -2,7 +2,7 @@ package DBD::SQLite::Amalgamation;
 use 5.006;
 use strict;
 use warnings;
-use version;our $VERSION = qv('3.5.7');
+use version;our $VERSION = qv('3.5.8');
 use DBD::SQLite;
 
 1;
@@ -23,6 +23,8 @@ DBD::SQLite::Amalgamation - Single C-file based DBD::SQLite distribution
 This module is nothing but a stub for an experimental way to distribute Matt
 Sergeant's DBD::SQLite, using the concatenated C files (the I<amalgamation>)
 as provided by the SQLite Consortium.
+
+As of version 3.5.8, the C<FTS3> full-text search engine is now built by default.
 
 =head1 SEE ALSO
 
