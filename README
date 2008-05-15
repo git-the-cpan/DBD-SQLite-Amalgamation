@@ -10,6 +10,9 @@ DESCRIPTION
     Matt Sergeant's DBD::SQLite, using the concatenated C files (the
     *amalgamation*) as provided by the SQLite Consortium.
 
+    As of version 3.5.8, the "FTS3" full-text search engine is now built by
+    default.
+
 SEE ALSO
     DBD::SQLite, where this module is derived from.
 

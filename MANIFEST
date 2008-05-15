@@ -22,7 +22,6 @@ t/03insert.t
 t/04select.t
 t/05tran.t
 t/06error.t
-t/07busy.t
 t/08create_function.t
 t/09create_aggregate.t
 t/10dsnlist.t
@@ -39,7 +38,6 @@ t/40prepcached.t
 t/50chopblanks.t
 t/50commit.t
 t/60metadata.t
-t/70schemachange.t
 t/90cppcomments.t
 t/99cleanup.t
 t/ak-dbd.t

@@ -1,6 +1,10 @@
+[Changes for 3.5.9 (DBD::SQLite 1.14) - 2008-05-16]
+
+* Updated to SQLite's 3.5.9 release.
+
 [Changes for 3.5.8 (DBD::SQLite 1.14) - 2008-03-18]
 
-* Updated to SQLite's 3.5.7 release.
+* Updated to SQLite's 3.5.8 release.
 
 * The FTS3 Full-text search engine is now built by deault.
 
