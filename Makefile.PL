@@ -125,7 +125,7 @@ WriteMakefile(
     'NAME'          => 'DBD::SQLite',
     'VERSION_FROM'  => 'lib/DBD/SQLite.pm', # finds $VERSION
     'DISTNAME'      => 'DBD-SQLite-Amalgamation',
-    'DISTVNAME'     => 'DBD-SQLite-Amalgamation-3.6.1',
+    'DISTVNAME'     => 'DBD-SQLite-Amalgamation-3.6.1.1',
     'PREREQ_PM'     => {DBI => 1.21, version => 0}, # e.g., Module::Name => 1.1
     'OBJECT'        => ($force_local) ? '$(O_FILES)' : 'SQLite.o dbdimp.o',
     'INC'           => '-I. -I$(DBI_INSTARCH_DIR)' .

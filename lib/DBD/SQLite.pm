@@ -5,7 +5,7 @@ use strict;
 
 use DBI;
 use vars qw($err $errstr $state $drh $VERSION @ISA $sqlite_version);
-$VERSION = '1.14';
+$VERSION = '1.14001';
 
 use DynaLoader();
 @ISA = ('DynaLoader');
@@ -56,6 +56,13 @@ sub connect {
     }
     DBD::SQLite::db::_login($dbh, $real_dbname, $user, $auth)
         or return undef;
+
+
+    # install perl collations
+    my $perl_collation        = sub {$_[0] cmp $_[1]};
+    my $perl_locale_collation = sub {use locale; $_[0] cmp $_[1]};
+    $dbh->func( "perl",       $perl_collation,        "create_collation" );
+    $dbh->func( "perllocale", $perl_locale_collation, "create_collation" );
 
     return $dbh;
 }
@@ -280,6 +287,72 @@ return; # XXX code just copied from DBD::Oracle, not yet thought about
     return $ti;
 }
 
+
+# Taken from Fey::Loader::SQLite
+sub _sqlite_column_info {
+    my($dbh, $catalog, $schema, $table, $column) = @_;
+
+    $column = undef
+        if defined $column && $column eq '%';
+
+    my $sth_columns = $dbh->prepare( qq{PRAGMA table_info('$table')} );
+    $sth_columns->execute;
+
+    my @names = qw( TABLE_CAT TABLE_SCHEM TABLE_NAME COLUMN_NAME
+                    DATA_TYPE TYPE_NAME COLUMN_SIZE BUFFER_LENGTH
+                    DECIMAL_DIGITS NUM_PREC_RADIX NULLABLE
+                    REMARKS COLUMN_DEF SQL_DATA_TYPE SQL_DATETIME_SUB
+                    CHAR_OCTET_LENGTH ORDINAL_POSITION IS_NULLABLE
+                );
+
+    my @cols;
+    while ( my $col_info = $sth_columns->fetchrow_hashref ) {
+        next if defined $column && $column ne $col_info->{name};
+
+        my %col;
+
+        $col{TABLE_NAME} = $table;
+        $col{COLUMN_NAME} = $col_info->{name};
+
+        my $type = $col_info->{type};
+        if ( $type =~ s/(\w+)\((\d+)(?:,(\d+))?\)/$1/ ) {
+            $col{COLUMN_SIZE} = $2;
+            $col{DECIMAL_DIGITS} = $3;
+        }
+
+        $col{TYPE_NAME} = $type;
+
+        $col{COLUMN_DEF} = $col_info->{dflt_value}
+            if defined $col_info->{dflt_value};
+
+        if ( $col_info->{notnull} ) {
+            $col{NULLABLE} = 0;
+            $col{IS_NULLABLE} = 'NO';
+        }
+        else {
+            $col{NULLABLE} = 1;
+            $col{IS_NULLABLE} = 'YES';
+        }
+
+        for my $key (@names) {
+            $col{$key} = undef
+                unless exists $col{$key};
+        }
+
+        push @cols, \%col;
+    }
+
+    my $sponge = DBI->connect("DBI:Sponge:", '','')
+        or return $dbh->DBI::set_err($DBI::err, "DBI::Sponge: $DBI::errstr");
+    my $sth = $sponge->prepare("column_info $table", {
+        rows => [ map { [ @{$_}{@names} ] } @cols ],
+        NUM_OF_FIELDS => scalar @names,
+        NAME => \@names,
+    }) or return $dbh->DBI::set_err($sponge->err(), $sponge->errstr());
+    return $sth;
+}
+
+1;
 
 1;
 __END__
@@ -517,6 +590,79 @@ The aggregate function can then be used as:
     SELECT group_name, variance(score) FROM results
     GROUP BY group_name;
 
+
+
+=head2 $dbh->func( $name, $func_ref, 'create_collation' )
+
+This method will register a new collation function which can then be used
+from C<COLLATE> clauses within SQL. The method's parameters are:
+
+=over
+
+=item $name
+
+The name of the collation; this is the name under which the
+collation will be available from SQL.
+
+=item $func_ref
+
+This should be a reference to the collation's implementation.
+The application defined collation routine should return negative, 
+zero or positive if the first string is less than, equal to, or greater
+than the second string. i.e. (STRING1 - STRING2).
+
+=back
+
+Collations C<binary> and C<nocase> are builtin within Sqlite.
+Collations C<perl> and C<perllocale> are builtin within 
+the C<DBD::SQLite> driver, and correspond to the 
+Perl C<cmp> operator with or without the L<locale> pragma; 
+so you can write for example 
+
+  CREATE TABLE foo(txt1 COLLATE perl,
+                   txt2 COLLATE perllocale,
+                   txt3 COLLATE nocase)
+
+If the attribute C<< $dbh->{unicode} >> is set, strings coming from
+the database and passed to the collation function will be properly
+tagged with the utf8 flag; but this only works if the 
+C<unicode> attribute is set B<before> the call to 
+C<create_collation>. The recommended way to activate unicode
+is to set the parameter at connection time :
+
+  my $dbh = DBI->connect("dbi:SQLite:dbname=foo", "", "", 
+                          { RaiseError => 1,
+                            unicode    => 1} );
+
+
+=head2 $dbh->func( $n_opcodes, $handler, 'progress_handler' )
+
+This method registers a handler to be invoked 
+periodically during long running calls to SQLite.
+An example use for this interface is to keep a GUI 
+updated during a large query.
+The parameters are:
+
+=over
+
+=item $n_opcodes
+
+The progress handler is invoked once for every C<$n_opcodes>
+virtual machine opcodes in SQLite.
+
+=item $handler
+
+Reference to the handler subroutine.  If the progress handler returns
+non-zero, the SQLite operation is interrupted. This feature can be used to
+implement a "Cancel" button on a GUI dialog box.
+
+Set this argument to C<undef> if you want to unregister a previous
+progress handler.
+
+=back
+
+
+
 =head1 BLOBS
 
 As of version 1.11, blobs should "just work" in SQLite as text columns. However
@@ -592,9 +738,11 @@ Likely to be many, please use http://rt.cpan.org/ for reporting bugs.
 
 Matt Sergeant, matt@sergeant.org
 
-Perl extension functions contributed by Francis J. Lacoste
-<flacoste@logreport.org> and Wolfgang Sourdeau
-<wolfgang@logreport.org>
+Perl extension functions contributed by 
+Francis J. Lacoste <flacoste@logreport.org>, 
+Wolfgang Sourdeau <wolfgang@logreport.org>
+and 
+Laurent Dami <dami@cpan.org>.
 
 =head1 SEE ALSO
 

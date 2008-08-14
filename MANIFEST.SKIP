@@ -6,7 +6,6 @@ CVS/.*
 \.tar\.gz$
 \.o$
 \.bs$
-\.xsi$
 output/.*
 ^.#
 ^mess/

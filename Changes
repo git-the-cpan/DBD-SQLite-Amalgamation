@@ -1,3 +1,15 @@
+[Changes for 3.6.1.1 (DBD::SQLite 1.14001) - 2008-08-15]
+
+* Support for $dbh->column_info.
+  Contributed by: Max Maischein
+
+* Support for custom "progress_handler" and "create_collation" functions.
+  Contributed by: Dami Laurent
+
+[Changes for 3.6.1 (DBD::SQLite 1.14) - 2008-08-07]
+
+* Updated to SQLite's 3.6.1 release.
+
 [Changes for 3.5.9 (DBD::SQLite 1.14) - 2008-05-16]
 
 * Updated to SQLite's 3.5.9 release.

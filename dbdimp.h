@@ -76,6 +76,8 @@ struct imp_sth_st {
 
 void sqlite_db_create_function(SV *dbh, const char *name, int argc, SV *func);
 void sqlite_db_create_aggregate( SV *dbh, const char *name, int argc, SV *aggr );
+void sqlite_db_create_collation(SV *dbh, const char *name, SV *func);
+void sqlite_db_progress_handler(SV *dbh, int n_opcodes, SV *handler);
 
 #ifdef SvUTF8_on
 
