@@ -44,6 +44,7 @@ t/60metadata.t
 t/90cppcomments.t
 t/99cleanup.t
 t/ak-dbd.t
+t/column-info.t
 t/dbdadmin.t
 t/lib.pl
 t/SQLite.dbtest

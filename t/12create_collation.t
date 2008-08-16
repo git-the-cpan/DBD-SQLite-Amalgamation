@@ -1,3 +1,11 @@
+BEGIN { 
+    local $@;
+    unless (eval { require Test::More; require Encode; 1 }) {
+        print "1..0 # Skip need Perl 5.8 or later\n";
+        exit;
+    }
+}
+
 use Test::More tests => 8;
 use DBI;
 use Encode qw/decode/;

@@ -1,3 +1,10 @@
+[Changes for 3.6.1.2 (DBD::SQLite 1.14001) - 2008-08-16]
+
+* Skip t/12create_collation.t when running under Perl earlier than 5.8.
+
+* Support for $dbh->column_info for real.
+  Contributed by: Max Maischein
+
 [Changes for 3.6.1.1 (DBD::SQLite 1.14001) - 2008-08-15]
 
 * Support for $dbh->column_info.

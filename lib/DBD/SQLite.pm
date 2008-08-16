@@ -289,7 +289,7 @@ return; # XXX code just copied from DBD::Oracle, not yet thought about
 
 
 # Taken from Fey::Loader::SQLite
-sub _sqlite_column_info {
+sub column_info {
     my($dbh, $catalog, $schema, $table, $column) = @_;
 
     $column = undef
