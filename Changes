@@ -1,3 +1,13 @@
+[Changes for 3.6.16 (DBD::SQLite 1.26_02) - 2009-07-29]
+
+Add this NOTE to DBD::SQLite::Amalgamation's POD:
+
+This module will be obsoleted once Adam Kennedy's release of C<DBD::SQLite>
+(which uses amalgamation-style compilation) becomes non-experimental on CPAN.
+
+When that happens, the DBD::SQLite::Amalgamation distribution will simply
+depend on the latest C<DBD::SQLite>.
+
 [Changes for 3.6.1.2 (DBD::SQLite 1.14001) - 2008-08-16]
 
 * Skip t/12create_collation.t when running under Perl earlier than 5.8.

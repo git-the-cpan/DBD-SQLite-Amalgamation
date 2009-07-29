@@ -1,13 +1,16 @@
-name:         DBD-SQLite-Amalgamation
-version:      3.6.1
-installdirs:  site
-no_index: 
-  package: 
-    - DBD::SQLite
-  file: 
-    - lib/DBD/SQLite.pm
-requires:
-    DBI: 1.21
-
-distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.17
+--- #YAML:1.0
+name:                DBD-SQLite-Amalgamation
+version:             1.26_02
+abstract:            Self Contained SQLite RDBMS in a DBI Driver
+license:             perl
+author:              
+    - Adam Kennedy <adamk@cpan.org>
+generated_by:        ExtUtils::MakeMaker version 6.44
+distribution_type:   module
+requires:     
+    DBI:                           1.57
+    File::Spec:                    0.82
+    Test::More:                    0.42
+meta-spec:
+    url:     http://module-build.sourceforge.net/META-spec-v1.3.html
+    version: 1.3

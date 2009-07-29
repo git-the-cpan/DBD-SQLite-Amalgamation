@@ -1,29 +1,464 @@
 NAME
-    DBD::SQLite::Amalgamation - Single C-file based DBD::SQLite distribution
+    DBD::SQLite - Self-contained RDBMS in a DBI Driver
 
 SYNOPSIS
       use DBI;
       my $dbh = DBI->connect("dbi:SQLite:dbname=dbfile","","");
 
 DESCRIPTION
-    This module is nothing but a stub for an experimental way to distribute
-    Matt Sergeant's DBD::SQLite, using the concatenated C files (the
-    *amalgamation*) as provided by the SQLite Consortium.
+    SQLite is a public domain RDBMS database engine that you can find at
+    <http://www.sqlite.org/>.
 
-    As of version 3.5.8, the "FTS3" full-text search engine is now built by
-    default.
+    Rather than ask you to install SQLite first, because SQLite is public
+    domain, DBD::SQLite includes the entire thing in the distribution. So in
+    order to get a fast transaction capable RDBMS working for your perl
+    project you simply have to install this module, and nothing else.
 
-SEE ALSO
-    DBD::SQLite, where this module is derived from.
+    SQLite supports the following features:
 
-AUTHORS
-    Audrey Tang <cpan@audreyt.org>
+    Implements a large subset of SQL92
+        See <http://www.sqlite.org/lang.html> for details.
+
+    A complete DB in a single disk file
+        Everything for your database is stored in a single disk file, making
+        it easier to move things around than with DBD::CSV.
+
+    Atomic commit and rollback
+        Yes, DBD::SQLite is small and light, but it supports full
+        transactions!
+
+    Extensible
+        User-defined aggregate or regular functions can be registered with
+        the SQL parser.
+
+    There's lots more to it, so please refer to the docs on the SQLite web
+    page, listed above, for SQL details. Also refer to DBI for details on
+    how to use DBI itself.
+
+CONFORMANCE WITH DBI SPECIFICATION
+    The API works like every DBI module does. Please see DBI for more
+    details about core features.
+
+    Currently many statement attributes are not implemented or are limited
+    by the typeless nature of the SQLite database.
+
+DRIVER PRIVATE ATTRIBUTES
+  Database Handle Attributes
+    sqlite_version
+        Returns the version of the SQLite library which DBD::SQLite is
+        using, e.g., "2.8.0". Can only be read.
+
+    unicode
+        If set to a true value, DBD::SQLite will turn the UTF-8 flag on for
+        all text strings coming out of the database (this feature is
+        currently disabled for perl < 5.8.5). For more details on the UTF-8
+        flag see perlunicode. The default is for the UTF-8 flag to be turned
+        off.
+
+        Also note that due to some bizarreness in SQLite's type system (see
+        <http://www.sqlite.org/datatype3.html>), if you want to retain
+        blob-style behavior for some columns under "$dbh->{unicode} = 1"
+        (say, to store images in the database), you have to state so
+        explicitly using the 3-argument form of "bind_param" in DBI when
+        doing updates:
+
+          use DBI qw(:sql_types);
+          $dbh->{unicode} = 1;
+          my $sth = $dbh->prepare("INSERT INTO mytable (blobcolumn) VALUES (?)");
+          
+  # Binary_data will be stored as is.
+          $sth->bind_param(1, $binary_data, SQL_BLOB);
+
+        Defining the column type as "BLOB" in the DDL is not sufficient.
+
+DRIVER PRIVATE METHODS
+    The following methods can be called via the func() method with a little
+    tweak, but the use of func() method is now discouraged by the DBI author
+    for various reasons (see <DBI's document> for details). So, if you're
+    using DBI >= 1.608, use these "sqlite_" methods. If you need to use an
+    older DBI, you can call these like this:
+
+      $dbh->func( ..., "(method name without sqlite_ prefix)" );
+
+  $dbh->sqlite_last_insert_rowid()
+    This method returns the last inserted rowid. If you specify an INTEGER
+    PRIMARY KEY as the first column in your table, that is the column that
+    is returned. Otherwise, it is the hidden ROWID column. See the sqlite
+    docs for details.
+
+    Generally you should not be using this method. Use the DBI
+    last_insert_id method instead. The usage of this is:
+
+      $h->last_insert_id($catalog, $schema, $table_name, $field_name [, \%attr ])
+
+    Running "$h->last_insert_id("","","","")" is the equivalent of running
+    "$dbh->sqlite_last_insert_rowid()" directly.
+
+  $dbh->sqlite_busy_timeout()
+    Retrieve the current busy timeout.
+
+  $dbh->sqlite_busy_timeout( $ms )
+    Set the current busy timeout. The timeout is in milliseconds.
+
+  $dbh->sqlite_create_function( $name, $argc, $code_ref )
+    This method will register a new function which will be useable in an SQL
+    query. The method's parameters are:
+
+    $name
+        The name of the function. This is the name of the function as it
+        will be used from SQL.
+
+    $argc
+        The number of arguments taken by the function. If this number is -1,
+        the function can take any number of arguments.
+
+    $code_ref
+        This should be a reference to the function's implementation.
+
+    For example, here is how to define a now() function which returns the
+    current number of seconds since the epoch:
+
+      $dbh->sqlite_create_function( 'now', 0, sub { return time } );
+
+    After this, it could be use from SQL as:
+
+      INSERT INTO mytable ( now() );
+
+  $dbh->sqlite_create_collation( $name, $code_ref )
+    This method will register a new function which will be useable in an SQL
+    query as a COLLATE option for sorting. The method's parameters are:
+
+    $name
+        The name of the function. This is the name of the function as it
+        will be used from SQL.
+
+    $code_ref
+        This should be a reference to the function's implementation. The
+        driver will check that this is a proper sorting function.
+
+    Collations "binary" and "nocase" are builtin within SQLite. Collations
+    "perl" and "perllocale" are builtin within the DBD::SQLite driver, and
+    correspond to the Perl "cmp" operator with or without the locale pragma;
+    so you can write for example
+
+      CREATE TABLE foo(
+          txt1 COLLATE perl,
+          txt2 COLLATE perllocale,
+          txt3 COLLATE nocase
+      )
+
+    or
+
+      SELECT * FROM foo ORDER BY name COLLATE perllocale
+
+    If the attribute "$dbh->{unicode}" is set, strings coming from the
+    database and passed to the collation function will be properly tagged
+    with the utf8 flag; but this only works if the "unicode" attribute is
+    set before the call to "create_collation". The recommended way to
+    activate unicode is to set the parameter at connection time :
+
+      my $dbh = DBI->connect(
+          "dbi:SQLite:dbname=foo", "", "", 
+          {
+              RaiseError => 1,
+              unicode    => 1,
+          }
+      );
+
+  $dbh->sqlite_create_aggregate( $name, $argc, $pkg )
+    This method will register a new aggregate function which can then be
+    used from SQL. The method's parameters are:
+
+    $name
+        The name of the aggregate function, this is the name under which the
+        function will be available from SQL.
+
+    $argc
+        This is an integer which tells the SQL parser how many arguments the
+        function takes. If that number is -1, the function can take any
+        number of arguments.
+
+    $pkg
+        This is the package which implements the aggregator interface.
+
+    The aggregator interface consists of defining three methods:
+
+    new()
+        This method will be called once to create an object which should be
+        used to aggregate the rows in a particular group. The step() and
+        finalize() methods will be called upon the reference return by the
+        method.
+
+    step(@_)
+        This method will be called once for each row in the aggregate.
+
+    finalize()
+        This method will be called once all rows in the aggregate were
+        processed and it should return the aggregate function's result. When
+        there is no rows in the aggregate, finalize() will be called right
+        after new().
+
+    Here is a simple aggregate function which returns the variance (example
+    adapted from pysqlite):
+
+      package variance;
+      
+  sub new { bless [], shift; }
+      
+  sub step {
+          my ( $self, $value ) = @_;
+      
+      push @$self, $value;
+      }
+      
+  sub finalize {
+          my $self = $_[0];
+      
+      my $n = @$self;
+      
+      # Variance is NULL unless there is more than one row
+          return undef unless $n || $n == 1;
+      
+      my $mu = 0;
+          foreach my $v ( @$self ) {
+              $mu += $v;
+          }
+          $mu /= $n;
+      
+      my $sigma = 0;
+          foreach my $v ( @$self ) {
+              $sigma += ($x - $mu)**2;
+          }
+          $sigma = $sigma / ($n - 1);
+      
+      return $sigma;
+      }
+      
+  $dbh->sqlite_create_aggregate( "variance", 1, 'variance' );
+
+    The aggregate function can then be used as:
+
+      SELECT group_name, variance(score)
+      FROM results
+      GROUP BY group_name;
+
+    For more examples, see the DBD::SQLite::Cookbook.
+
+  $dbh->sqlite_progress_handler( $n_opcodes, $code_ref )
+    This method registers a handler to be invoked periodically during long
+    running calls to SQLite.
+
+    An example use for this interface is to keep a GUI updated during a
+    large query. The parameters are:
+
+    $n_opcodes
+        The progress handler is invoked once for every $n_opcodes virtual
+        machine opcodes in SQLite.
+
+    $handler
+        Reference to the handler subroutine. If the progress handler returns
+        non-zero, the SQLite operation is interrupted. This feature can be
+        used to implement a "Cancel" button on a GUI dialog box.
+
+        Set this argument to "undef" if you want to unregister a previous
+        progress handler.
+
+  $dbh->sqlite_backup_from_file( $filename )
+    This method accesses the SQLite Online Backup API, and will take a
+    backup of the named database file, copying it to, and overwriting, your
+    current database connection. This can be particularly handy if your
+    current connection is to the special :memory: database, and you wish to
+    populate it from an existing DB.
+
+  $dbh->sqlite_backup_to_file( $filename )
+    This method accesses the SQLite Online Backup API, and will take a
+    backup of the currently connected database, and write it out to the
+    named file.
+
+BLOBS
+    As of version 1.11, blobs should "just work" in SQLite as text columns.
+    However this will cause the data to be treated as a string, so SQL
+    statements such as length(x) will return the length of the column as a
+    NUL terminated string, rather than the size of the blob in bytes. In
+    order to store natively as a BLOB use the following code:
+
+      use DBI qw(:sql_types);
+      my $dbh = DBI->connect("dbi:SQLite:dbfile","","");
+      
+  my $blob = `cat foo.jpg`;
+      my $sth = $dbh->prepare("INSERT INTO mytable VALUES (1, ?)");
+      $sth->bind_param(1, $blob, SQL_BLOB);
+      $sth->execute();
+
+    And then retrieval just works:
+
+      $sth = $dbh->prepare("SELECT * FROM mytable WHERE id = 1");
+      $sth->execute();
+      my $row = $sth->fetch;
+      my $blobo = $row->[1];
+      
+  # now $blobo == $blob
+
+  $dbh->sqlite_enable_load_extension( $bool )
+    Calling this method with a true value enables loading (external) sqlite3
+    extensions. After the call, you can load extensions like this:
+
+      $dbh->sqlite_enable_load_extension(1);
+      $sth = $dbh->prepare("select load_extension('libsqlitefunctions.so')")
+      or die "Cannot prepare: " . $dbh->errstr();
+
+NOTES
+    Although the database is stored in a single file, the directory
+    containing the database file must be writable by SQLite because the
+    library will create several temporary files there.
+
+    To access the database from the command line, try using dbish which
+    comes with the DBI module. Just type:
+
+      dbish dbi:SQLite:foo.db
+
+    On the command line to access the file foo.db.
+
+    Alternatively you can install SQLite from the link above without
+    conflicting with DBD::SQLite and use the supplied "sqlite" command line
+    tool.
+
+FUNCTIONS AND BIND PARAMETERS
+    As of this writing, a SQL that compares a return value of a function
+    with a numeric bind value like this doesn't work as you might expect.
+
+      my $sth = $dbh->prepare(q{
+        SELECT bar FROM foo GROUP BY bar HAVING count(*) > ?;
+      });
+      $sth->execute(5);
+
+    This is because DBD::SQLite assumes that all the bind values are text
+    (and should be quoted) by default. Thus the above statement becomes like
+    this while executing:
+
+      SELECT bar FROM foo GROUP BY bar HAVING count(*) > "5";
+
+    There are two workarounds for this.
+
+    Use bind_param() explicitly
+        As shown above in the "BLOB" section, you can always use
+        "bind_param()" to tell the type of a bind value.
+
+          use DBI qw(:sql_types);  # Don't forget this
+
+          my $sth = $dbh->prepare(q{
+            SELECT bar FROM foo GROUP BY bar HAVING count(*) > ?;
+          });
+          $sth->bind_param(1, 5, SQL_INTEGER);
+          $sth->execute();
+
+    Add zero to make it a number
+        This is somewhat weird, but works anyway.
+
+          my $sth = $dbh->prepare(q{
+            SELECT bar FROM foo GROUP BY bar HAVING count(*) > (? + 0);
+          });
+          $sth->execute(5);
+
+PERFORMANCE
+    SQLite is fast, very fast. I recently processed my 72MB log file with
+    it, inserting the data (400,000+ rows) by using transactions and only
+    committing every 1000 rows (otherwise the insertion is quite slow), and
+    then performing queries on the data.
+
+    Queries like count(*) and avg(bytes) took fractions of a second to
+    return, but what surprised me most of all was:
+
+      SELECT url, count(*) as count
+      FROM access_log
+      GROUP BY url
+      ORDER BY count desc
+      LIMIT 20
+
+    To discover the top 20 hit URLs on the site (<http://axkit.org>), and it
+    returned within 2 seconds. I'm seriously considering switching my log
+    analysis code to use this little speed demon!
+
+    Oh yeah, and that was with no indexes on the table, on a 400MHz PIII.
+
+    For best performance be sure to tune your hdparm settings if you are
+    using linux. Also you might want to set:
+
+      PRAGMA default_synchronous = OFF
+
+    Which will prevent sqlite from doing fsync's when writing (which slows
+    down non-transactional writes significantly) at the expense of some
+    peace of mind. Also try playing with the cache_size pragma.
+
+    The memory usage of SQLite can also be tuned using the cache_size
+    pragma.
+
+      $dbh->do("PRAGMA cache_size = 800000");
+
+    The above will allocate 800M for DB cache; the default is 2M. Your sweet
+    spot probably lies somewhere in between.
+
+TO DO
+    The following items remain to be done.
+
+  Warnings Upgrade
+    We currently use a horridly hacky method to issue and suppress warnings.
+    It suffices for now, but just barely.
+
+    Migrate all of the warning code to use the recommended DBI warnings.
+
+  Leak Detection
+    Implement one or more leak detection tests that only run during
+    AUTOMATED_TESTING and RELEASE_TESTING and validate that none of the C
+    code we work with leaks.
+
+SUPPORT
+    Bugs should be reported via the CPAN bug tracker at
+
+    <http://rt.cpan.org/NoAuth/ReportBug.html?Queue=DBD-SQLite>
+
+TO DO
+    There're several pended RT bugs/patches at the moment (mainly due to the
+    lack of tests/patches or segfaults on tests).
+
+    Here's the list.
+
+    <http://rt.cpan.org/Public/Bug/Display.html?id=35449> (breaks tests)
+
+    <http://rt.cpan.org/Public/Bug/Display.html?id=29629> (requires a patch)
+
+    <http://rt.cpan.org/Public/Bug/Display.html?id=29058> (requires a patch)
+
+    Switch tests to Test::More to support more advanced testing behaviours
+
+AUTHOR
+    Matt Sergeant <matt@sergeant.org>
+
+    Francis J. Lacoste <flacoste@logreport.org>
+
+    Wolfgang Sourdeau <wolfgang@logreport.org>
+
+    Adam Kennedy <adamk@cpan.org>
+
+    Max Maischein <corion@cpan.org>
 
 COPYRIGHT
-    The author disclaims copyright to this source code. In place of a legal
-    notice, here is a blessing:
+    The bundled SQLite code in this distribution is Public Domain.
 
-        May you do good and not evil.
-        May you find forgiveness for yourself and forgive others.
-        May you share freely, never taking more than you give.
+    DBD::SQLite is copyright 2002 - 2007 Matt Sergeant.
+
+    Some parts copyright 2008 Francis J. Lacoste.
+
+    Some parts copyright 2008 Wolfgang Sourdeau.
+
+    Some parts copyright 2008 - 2009 Adam Kennedy.
+
+    Some parts derived from DBD::SQLite::Amalgamation copyright 2008 Audrey
+    Tang.
+
+    This program is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself.
+
+    The full text of the license can be found in the LICENSE file included
+    with this module.
 
